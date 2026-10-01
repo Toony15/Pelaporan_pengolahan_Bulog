@@ -1,0 +1,920 @@
+diff --git a/.env.example b/.env.example
+index 40bb13b..53c417c 100644
+--- a/.env.example
++++ b/.env.example
+@@ -4,7 +4,7 @@ APP_KEY=
+ APP_DEBUG=true
+ APP_URL=http://localhost:8000
+ 
+-APP_LOCALE=en
++APP_LOCALE=id
+ APP_FALLBACK_LOCALE=en
+ APP_FAKER_LOCALE=en_US
+ 
+diff --git a/app/Actions/Fortify/CreateNewUser.php b/app/Actions/Fortify/CreateNewUser.php
+index 3c7c00c..0dc89c8 100644
+--- a/app/Actions/Fortify/CreateNewUser.php
++++ b/app/Actions/Fortify/CreateNewUser.php
+@@ -6,6 +6,9 @@
+ use App\Concerns\ProfileValidationRules;
+ use App\Models\User;
+ use Illuminate\Support\Facades\Validator;
++use Illuminate\Support\Str;
++use Illuminate\Validation\Rule;
++use Illuminate\Validation\Rules\Password;
+ use Laravel\Fortify\Contracts\CreatesNewUsers;
+ 
+ class CreateNewUser implements CreatesNewUsers
+@@ -15,18 +18,38 @@ class CreateNewUser implements CreatesNewUsers
+     /**
+      * Validate and create a newly registered user.
+      *
+-     * @param  array<string, string>  $input
++     * @param  array<string, mixed>  $input
+      */
+     public function create(array $input): User
+     {
++        // Username selalu disimpan huruf kecil (Fortify juga melowercase saat login).
++        $input['username'] = is_string($input['username'] ?? null) ? Str::lower(trim($input['username'])) : '';
++        $input['phone'] = is_string($input['phone'] ?? null) ? preg_replace('/[\s\-]/', '', $input['phone']) : '';
++
+         Validator::make($input, [
+-            ...$this->profileRules(),
+-            'password' => $this->passwordRules(),
++            'email' => $this->emailRules(),
++            'phone' => ['required', 'string', 'regex:/^(\+62|62|0)8\d{7,12}$/'],
++            'username' => ['required', 'string', 'min:4', 'max:30', 'alpha_dash:ascii', Rule::unique(User::class)],
++            'password' => ['required', 'string', Password::default()],
++        ], [
++            'email.required' => 'Email wajib diisi.',
++            'email.email' => 'Format email tidak valid.',
++            'email.unique' => 'Email sudah terdaftar.',
++            'phone.required' => 'No HP wajib diisi.',
++            'phone.regex' => 'No HP tidak valid. Contoh: 081234567890.',
++            'username.required' => 'Username wajib diisi.',
++            'username.min' => 'Username minimal 4 karakter.',
++            'username.max' => 'Username maksimal 30 karakter.',
++            'username.alpha_dash' => 'Username hanya boleh berisi huruf, angka, garis bawah, dan strip.',
++            'username.unique' => 'Username sudah dipakai.',
++            'password.required' => 'Password wajib diisi.',
+         ])->validate();
+ 
+         return User::create([
+-            'name' => $input['name'],
++            'name' => $input['username'],
++            'username' => $input['username'],
+             'email' => $input['email'],
++            'phone' => $input['phone'],
+             'password' => $input['password'],
+         ]);
+     }
+diff --git a/app/Models/User.php b/app/Models/User.php
+index 4a70a49..5025df4 100644
+--- a/app/Models/User.php
++++ b/app/Models/User.php
+@@ -29,7 +29,7 @@
+  * @property Carbon|null $created_at
+  * @property Carbon|null $updated_at
+  */
+-#[Fillable(['name', 'email', 'password'])]
++#[Fillable(['name', 'username', 'email', 'phone', 'password'])]
+ #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
+ class User extends Authenticatable implements PasskeyUser
+ {
+diff --git a/config/fortify.php b/config/fortify.php
+index cedebce..4f37921 100644
+--- a/config/fortify.php
++++ b/config/fortify.php
+@@ -45,7 +45,7 @@
+     |
+     */
+ 
+-    'username' => 'email',
++    'username' => 'username',
+ 
+     'email' => 'email',
+ 
+diff --git a/database/factories/UserFactory.php b/database/factories/UserFactory.php
+index 98825c8..890ff34 100644
+--- a/database/factories/UserFactory.php
++++ b/database/factories/UserFactory.php
+@@ -26,7 +26,9 @@ public function definition(): array
+     {
+         return [
+             'name' => fake()->name(),
++            'username' => fake()->unique()->regexify('[a-z]{8}'),
+             'email' => fake()->unique()->safeEmail(),
++            'phone' => '08'.fake()->numerify('##########'),
+             'email_verified_at' => now(),
+             'password' => static::$password ??= Hash::make('password'),
+             'remember_token' => Str::random(10),
+diff --git a/database/migrations/2026_09_30_000001_add_username_and_phone_to_users_table.php b/database/migrations/2026_09_30_000001_add_username_and_phone_to_users_table.php
+new file mode 100644
+index 0000000..f97856f
+--- /dev/null
++++ b/database/migrations/2026_09_30_000001_add_username_and_phone_to_users_table.php
+@@ -0,0 +1,42 @@
++<?php
++
++use Illuminate\Database\Migrations\Migration;
++use Illuminate\Database\Schema\Blueprint;
++use Illuminate\Support\Facades\DB;
++use Illuminate\Support\Facades\Schema;
++use Illuminate\Support\Str;
++
++return new class extends Migration
++{
++    public function up(): void
++    {
++        Schema::table('users', function (Blueprint $table) {
++            $table->string('username', 30)->nullable()->unique()->after('name');
++            $table->string('phone', 20)->nullable()->after('email');
++        });
++
++        // Akun lama diberi username dari bagian depan emailnya agar tetap bisa login.
++        foreach (DB::table('users')->whereNull('username')->get() as $user) {
++            $base = preg_replace('/[^a-z0-9_-]/', '', Str::lower(Str::before($user->email, '@')));
++            $base = Str::substr($base ?: 'user', 0, 24);
++            $username = $base;
++
++            for ($i = 1; DB::table('users')->where('username', $username)->exists(); $i++) {
++                $username = $base.$i;
++            }
++
++            DB::table('users')->where('id', $user->id)->update(['username' => $username]);
++        }
++    }
++
++    public function down(): void
++    {
++        Schema::table('users', function (Blueprint $table) {
++            $table->dropUnique(['username']);
++        });
++
++        Schema::table('users', function (Blueprint $table) {
++            $table->dropColumn(['username', 'phone']);
++        });
++    }
++};
+diff --git a/database/seeders/DatabaseSeeder.php b/database/seeders/DatabaseSeeder.php
+index 4e76b93..9c9a41f 100644
+--- a/database/seeders/DatabaseSeeder.php
++++ b/database/seeders/DatabaseSeeder.php
+@@ -22,14 +22,18 @@ public function run(): void
+     User::factory()->create
+      ([
+         'name' => 'Admin BULOG',
++        'username' => 'admin',
+         'email' => 'admin@bulog.test',
++        'phone' => '081200000001',
+         'role' => Role::Admin,
+       ]);
+ 
+     User::factory()->create
+       ([
+         'name' => 'Manager BULOG',
++        'username' => 'manager',
+         'email' => 'manager@bulog.test',
++        'phone' => '081200000002',
+         'role' => Role::Manager,
+       ]);
+     }
+diff --git a/lang/id/auth.php b/lang/id/auth.php
+new file mode 100644
+index 0000000..620341b
+--- /dev/null
++++ b/lang/id/auth.php
+@@ -0,0 +1,7 @@
++<?php
++
++return [
++    'failed' => 'Username atau password salah.',
++    'password' => 'Password yang dimasukkan salah.',
++    'throttle' => 'Terlalu banyak percobaan login. Coba lagi dalam :seconds detik.',
++];
+diff --git a/public/images/bulog-logo.png b/public/images/bulog-logo.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..934bdb75d8dce10bc9be3b9690c401c50533ec96
+GIT binary patch
+literal 8183
+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
+
+literal 0
+HcmV?d00001
+
+diff --git a/resources/js/app.ts b/resources/js/app.ts
+index af1a011..25172e8 100644
+--- a/resources/js/app.ts
++++ b/resources/js/app.ts
+@@ -2,6 +2,7 @@ import { createInertiaApp } from '@inertiajs/vue3';
+ import { initializeTheme } from '@/composables/useAppearance';
+ import AppLayout from '@/layouts/AppLayout.vue';
+ import AuthLayout from '@/layouts/AuthLayout.vue';
++import BulogAuthLayout from '@/layouts/BulogAuthLayout.vue';
+ import SettingsLayout from '@/layouts/settings/Layout.vue';
+ import { initializeFlashToast } from '@/lib/flashToast';
+ 
+@@ -13,6 +14,8 @@ void createInertiaApp({
+         switch (true) {
+             case name === 'Welcome':
+                 return null;
++            case name === 'auth/Login' || name === 'auth/Register':
++                return BulogAuthLayout;
+             case name.startsWith('auth/'):
+                 return AuthLayout;
+             case name.startsWith('settings/'):
+diff --git a/resources/js/components/PillInput.vue b/resources/js/components/PillInput.vue
+new file mode 100644
+index 0000000..d712f69
+--- /dev/null
++++ b/resources/js/components/PillInput.vue
+@@ -0,0 +1,56 @@
++<script setup lang="ts">
++import { Eye, EyeOff } from '@lucide/vue';
++import { computed, onMounted, ref, useTemplateRef } from 'vue';
++
++defineOptions({ inheritAttrs: false });
++
++const props = defineProps<{
++    label: string;
++    type?: string;
++    error?: string;
++    autofocus?: boolean;
++}>();
++
++const input = useTemplateRef<HTMLInputElement>('input');
++const reveal = ref(false);
++const isPassword = computed(() => props.type === 'password');
++const inputType = computed(() =>
++    isPassword.value && reveal.value ? 'text' : (props.type ?? 'text'),
++);
++
++onMounted(() => {
++    if (props.autofocus) {
++        input.value?.focus();
++    }
++});
++</script>
++
++<template>
++    <div>
++        <div class="relative">
++            <input
++                v-bind="$attrs"
++                ref="input"
++                :type="inputType"
++                :placeholder="label"
++                :aria-label="label"
++                :aria-invalid="!!error"
++                class="h-14 w-full rounded-full border border-[#395E90] bg-white px-6 text-base text-[#294161] outline-none placeholder:text-[#AF7A1C] focus-visible:ring-4 focus-visible:ring-[#395E90]/25 aria-invalid:border-red-600 md:h-[63px]"
++                :class="isPassword ? 'pr-14' : ''"
++            />
++            <button
++                v-if="isPassword"
++                type="button"
++                class="absolute inset-y-0 right-3 flex items-center rounded-full px-3 text-[#395E90] outline-none focus-visible:ring-4 focus-visible:ring-[#395E90]/25"
++                :aria-label="reveal ? 'Sembunyikan password' : 'Tampilkan password'"
++                @click="reveal = !reveal"
++            >
++                <EyeOff v-if="reveal" class="size-5" />
++                <Eye v-else class="size-5" />
++            </button>
++        </div>
++        <p v-if="error" class="mt-2 px-6 text-sm text-red-600" role="alert">
++            {{ error }}
++        </p>
++    </div>
++</template>
+diff --git a/resources/js/layouts/BulogAuthLayout.vue b/resources/js/layouts/BulogAuthLayout.vue
+new file mode 100644
+index 0000000..b43372a
+--- /dev/null
++++ b/resources/js/layouts/BulogAuthLayout.vue
+@@ -0,0 +1,31 @@
++<script setup lang="ts">
++import { Link } from '@inertiajs/vue3';
++import { home } from '@/routes';
++</script>
++
++<template>
++    <!-- Halaman login/register selalu terang, mengikuti desain Figma -->
++    <div
++        class="flex min-h-svh flex-col bg-white font-[Inter,ui-sans-serif,system-ui,sans-serif] text-[#395E90]"
++    >
++        <header
++            class="flex h-24 items-center border-b border-[#839DC1] px-6 md:h-[131px] md:px-10"
++        >
++            <Link :href="home()" aria-label="Bulog, beranda">
++                <img
++                    src="/images/bulog-logo.png"
++                    alt="Bulog, mengantarkan kebaikan"
++                    width="150"
++                    height="50"
++                    class="h-auto w-[130px] md:w-[150px]"
++                />
++            </Link>
++        </header>
++
++        <main class="flex flex-1 flex-col items-center justify-center px-4 py-10">
++            <div class="w-full max-w-[567px]">
++                <slot />
++            </div>
++        </main>
++    </div>
++</template>
+diff --git a/resources/js/pages/auth/Login.vue b/resources/js/pages/auth/Login.vue
+index d247c07..069b67c 100644
+--- a/resources/js/pages/auth/Login.vue
++++ b/resources/js/pages/auth/Login.vue
+@@ -1,110 +1,71 @@
+ <script setup lang="ts">
+-import { Form, Head } from '@inertiajs/vue3';
+-import InputError from '@/components/InputError.vue';
+-import PasswordInput from '@/components/PasswordInput.vue';
+-import TextLink from '@/components/TextLink.vue';
+-import { Button } from '@/components/ui/button';
+-import { Checkbox } from '@/components/ui/checkbox';
+-import { Input } from '@/components/ui/input';
+-import { Label } from '@/components/ui/label';
++import { Form, Head, Link } from '@inertiajs/vue3';
++import PillInput from '@/components/PillInput.vue';
+ import { Spinner } from '@/components/ui/spinner';
+ import { register } from '@/routes';
+ import { store } from '@/routes/login';
+-import { request } from '@/routes/password';
+-import PasskeyVerify from '@/components/PasskeyVerify.vue';
+-
+-defineOptions({
+-    layout: {
+-        title: 'Log in to your account',
+-        description: 'Enter your email and password below to log in',
+-    },
+-});
+ 
+ defineProps<{
+     status?: string;
+-    canResetPassword: boolean;
++    canResetPassword?: boolean;
+ }>();
++
++const button =
++    'inline-flex h-[43px] items-center justify-center gap-2 rounded-xl bg-[#294161] px-6 text-base font-medium text-white outline-none transition-colors hover:bg-[#1f3350] focus-visible:ring-4 focus-visible:ring-[#395E90]/40 disabled:opacity-60';
+ </script>
+ 
+ <template>
+-    <Head title="Log in" />
++    <Head title="Login" />
+ 
+-    <div
+-        v-if="status"
+-        class="mb-4 text-center text-sm font-medium text-green-600"
+-    >
+-        {{ status }}
+-    </div>
++    <h1 class="mb-2 text-center text-xl font-bold">Selamat Datang</h1>
+ 
+-    <PasskeyVerify />
++    <div class="rounded-[28px] border border-[#94ADCF] p-7 md:pb-12">
++        <p class="mb-4 px-3.5 text-sm font-bold">
++            Sudah punya akun? silahkan masuk
++        </p>
+ 
+-    <Form
+-        v-bind="store.form()"
+-        :reset-on-success="['password']"
+-        v-slot="{ errors, processing }"
+-        class="flex flex-col gap-6"
+-    >
+-        <div class="grid gap-6">
+-            <div class="grid gap-2">
+-                <Label for="email">Email address</Label>
+-                <Input
+-                    id="email"
+-                    type="email"
+-                    name="email"
+-                    required
+-                    v-focus
+-                    :tabindex="1"
+-                    autocomplete="email"
+-                    placeholder="email@example.com"
+-                />
+-                <InputError :message="errors.email" />
+-            </div>
++        <p v-if="status" class="mb-4 px-3.5 text-sm font-medium text-green-700">
++            {{ status }}
++        </p>
+ 
+-            <div class="grid gap-2">
+-                <div class="flex items-center justify-between">
+-                    <Label for="password">Password</Label>
+-                    <TextLink
+-                        v-if="canResetPassword"
+-                        :href="request()"
+-                        class="text-sm"
+-                        :tabindex="5"
+-                    >
+-                        Forgot your password?
+-                    </TextLink>
+-                </div>
+-                <PasswordInput
+-                    id="password"
+-                    name="password"
+-                    required
+-                    :tabindex="2"
+-                    autocomplete="current-password"
+-                    placeholder="Password"
+-                />
+-                <InputError :message="errors.password" />
++        <Form
++            v-bind="store.form()"
++            :reset-on-success="['password']"
++            v-slot="{ errors, processing }"
++            class="flex flex-col gap-7"
++        >
++            <PillInput
++                name="username"
++                label="Username"
++                autocomplete="username"
++                required
++                autofocus
++                :error="errors.username"
++            />
++            <PillInput
++                name="password"
++                type="password"
++                label="Password"
++                autocomplete="current-password"
++                required
++                :error="errors.password"
++            />
++            <div class="px-3.5">
++                <button
++                    type="submit"
++                    :class="button"
++                    :disabled="processing"
++                    data-test="login-button"
++                >
++                    <Spinner v-if="processing" />
++                    Login
++                </button>
+             </div>
++        </Form>
++    </div>
+ 
+-            <div class="flex items-center justify-between">
+-                <Label for="remember" class="flex items-center space-x-3">
+-                    <Checkbox id="remember" name="remember" :tabindex="3" />
+-                    <span>Remember me</span>
+-                </Label>
+-            </div>
+-
+-            <Button
+-                type="submit"
+-                class="mt-4 w-full"
+-                :tabindex="4"
+-                :disabled="processing"
+-                data-test="login-button"
+-            >
+-                <Spinner v-if="processing" />
+-                Log in
+-            </Button>
+-        </div>
+-
+-        <div class="text-center text-sm text-muted-foreground">
+-            Don't have an account?
+-            <TextLink :href="register()" :tabindex="5">Sign up</TextLink>
+-        </div>
+-    </Form>
++    <div class="mt-8 flex flex-wrap items-center gap-x-5 gap-y-3 px-3.5">
++        <p class="text-sm font-bold">Belum punya akun? silahkan register</p>
++        <Link :href="register()" :class="button">Register</Link>
++    </div>
+ </template>
+diff --git a/resources/js/pages/auth/Register.vue b/resources/js/pages/auth/Register.vue
+index e1973c1..ad41dd0 100644
+--- a/resources/js/pages/auth/Register.vue
++++ b/resources/js/pages/auth/Register.vue
+@@ -1,11 +1,6 @@
+ <script setup lang="ts">
+-import { Form, Head } from '@inertiajs/vue3';
+-import InputError from '@/components/InputError.vue';
+-import PasswordInput from '@/components/PasswordInput.vue';
+-import TextLink from '@/components/TextLink.vue';
+-import { Button } from '@/components/ui/button';
+-import { Input } from '@/components/ui/input';
+-import { Label } from '@/components/ui/label';
++import { Form, Head, Link } from '@inertiajs/vue3';
++import PillInput from '@/components/PillInput.vue';
+ import { Spinner } from '@/components/ui/spinner';
+ import { login } from '@/routes';
+ import { store } from '@/routes/register';
+@@ -14,101 +9,76 @@ defineProps<{
+     passwordRules: string;
+ }>();
+ 
+-defineOptions({
+-    layout: {
+-        title: 'Create an account',
+-        description: 'Enter your details below to create your account',
+-    },
+-});
++const button =
++    'inline-flex h-[43px] items-center justify-center gap-2 rounded-xl bg-[#294161] px-6 text-base font-medium text-white outline-none transition-colors hover:bg-[#1f3350] focus-visible:ring-4 focus-visible:ring-[#395E90]/40 disabled:opacity-60';
+ </script>
+ 
+ <template>
+     <Head title="Register" />
+ 
+-    <Form
+-        v-bind="store.form()"
+-        :reset-on-success="['password', 'password_confirmation']"
+-        v-slot="{ errors, processing }"
+-        class="flex flex-col gap-6"
+-    >
+-        <div class="grid gap-6">
+-            <div class="grid gap-2">
+-                <Label for="name">Name</Label>
+-                <Input
+-                    id="name"
+-                    type="text"
+-                    required
+-                    v-focus
+-                    :tabindex="1"
+-                    autocomplete="name"
+-                    name="name"
+-                    placeholder="Full name"
+-                />
+-                <InputError :message="errors.name" />
+-            </div>
++    <h1 class="mb-2 text-center text-xl font-bold">Selamat Datang</h1>
+ 
+-            <div class="grid gap-2">
+-                <Label for="email">Email address</Label>
+-                <Input
+-                    id="email"
+-                    type="email"
+-                    required
+-                    :tabindex="2"
+-                    autocomplete="email"
+-                    name="email"
+-                    placeholder="email@example.com"
+-                />
+-                <InputError :message="errors.email" />
+-            </div>
++    <div class="rounded-[28px] border border-[#94ADCF] p-7 md:pb-12">
++        <p class="mb-4 px-3.5 text-sm font-bold">
++            Silahkan registrasi untuk membuat akun
++        </p>
+ 
+-            <div class="grid gap-2">
+-                <Label for="password">Password</Label>
+-                <PasswordInput
+-                    id="password"
+-                    required
+-                    :tabindex="3"
+-                    autocomplete="new-password"
+-                    name="password"
+-                    placeholder="Password"
+-                    :passwordrules="passwordRules"
+-                />
+-                <InputError :message="errors.password" />
++        <Form
++            v-bind="store.form()"
++            :reset-on-success="['password']"
++            v-slot="{ errors, processing }"
++            class="flex flex-col gap-7"
++        >
++            <PillInput
++                name="email"
++                type="email"
++                label="Email"
++                autocomplete="email"
++                required
++                autofocus
++                :error="errors.email"
++            />
++            <PillInput
++                name="phone"
++                type="tel"
++                label="No Hp"
++                inputmode="tel"
++                autocomplete="tel"
++                required
++                :error="errors.phone"
++            />
++            <PillInput
++                name="username"
++                label="Username"
++                autocomplete="username"
++                required
++                :error="errors.username"
++            />
++            <PillInput
++                name="password"
++                type="password"
++                label="Password"
++                autocomplete="new-password"
++                :passwordrules="passwordRules"
++                required
++                :error="errors.password"
++            />
++            <div class="px-3.5">
++                <button
++                    type="submit"
++                    :class="button"
++                    :disabled="processing"
++                    data-test="register-user-button"
++                >
++                    <Spinner v-if="processing" />
++                    Register
++                </button>
+             </div>
++        </Form>
++    </div>
+ 
+-            <div class="grid gap-2">
+-                <Label for="password_confirmation">Confirm password</Label>
+-                <PasswordInput
+-                    id="password_confirmation"
+-                    required
+-                    :tabindex="4"
+-                    autocomplete="new-password"
+-                    name="password_confirmation"
+-                    placeholder="Confirm password"
+-                    :passwordrules="passwordRules"
+-                />
+-                <InputError :message="errors.password_confirmation" />
+-            </div>
+-
+-            <Button
+-                type="submit"
+-                class="mt-2 w-full"
+-                tabindex="5"
+-                :disabled="processing"
+-                data-test="register-user-button"
+-            >
+-                <Spinner v-if="processing" />
+-                Create account
+-            </Button>
+-        </div>
+-
+-        <div class="text-center text-sm text-muted-foreground">
+-            Already have an account?
+-            <TextLink
+-                :href="login()"
+-                class="underline underline-offset-4"
+-                :tabindex="6"
+-                >Log in</TextLink
+-            >
+-        </div>
+-    </Form>
++    <div class="mt-8 flex flex-wrap items-center gap-x-5 gap-y-3 px-3.5">
++        <p class="text-sm font-bold">Sudah punya akun? silahkan masuk</p>
++        <Link :href="login()" :class="button">Login</Link>
++    </div>
+ </template>
+diff --git a/tests/Feature/Auth/AuthenticationTest.php b/tests/Feature/Auth/AuthenticationTest.php
+index c404ceb..5375151 100644
+--- a/tests/Feature/Auth/AuthenticationTest.php
++++ b/tests/Feature/Auth/AuthenticationTest.php
+@@ -14,7 +14,7 @@
+     $user = User::factory()->create();
+ 
+     $response = $this->post(route('login.store'), [
+-        'email' => $user->email,
++        'username' => $user->username,
+         'password' => 'password',
+     ]);
+ 
+@@ -33,7 +33,7 @@
+     $user = User::factory()->withTwoFactor()->create();
+ 
+     $response = $this->post(route('login'), [
+-        'email' => $user->email,
++        'username' => $user->username,
+         'password' => 'password',
+     ]);
+ 
+@@ -46,7 +46,7 @@
+     $user = User::factory()->create();
+ 
+     $this->post(route('login.store'), [
+-        'email' => $user->email,
++        'username' => $user->username,
+         'password' => 'wrong-password',
+     ]);
+ 
+@@ -66,10 +66,10 @@
+ test('users are rate limited', function () {
+     $user = User::factory()->create();
+ 
+-    RateLimiter::increment(md5('login'.implode('|', [$user->email, '127.0.0.1'])), amount: 5);
++    RateLimiter::increment(md5('login'.implode('|', [$user->username, '127.0.0.1'])), amount: 5);
+ 
+     $response = $this->post(route('login.store'), [
+-        'email' => $user->email,
++        'username' => $user->username,
+         'password' => 'wrong-password',
+     ]);
+ 
+diff --git a/tests/Feature/Auth/RegistrationTest.php b/tests/Feature/Auth/RegistrationTest.php
+index abd8ab2..1ef724f 100644
+--- a/tests/Feature/Auth/RegistrationTest.php
++++ b/tests/Feature/Auth/RegistrationTest.php
+@@ -14,10 +14,10 @@
+ 
+ test('new users can register', function () {
+     $response = $this->post(route('register.store'), [
+-        'name' => 'Test User',
+         'email' => 'test@example.com',
++        'phone' => '081234567890',
++        'username' => 'testuser',
+         'password' => 'password',
+-        'password_confirmation' => 'password',
+     ]);
+ 
+     $this->assertAuthenticated();
+diff --git a/tests/Feature/Auth/TwoFactorChallengeTest.php b/tests/Feature/Auth/TwoFactorChallengeTest.php
+index 8d1f1da..c683f8b 100644
+--- a/tests/Feature/Auth/TwoFactorChallengeTest.php
++++ b/tests/Feature/Auth/TwoFactorChallengeTest.php
+@@ -23,7 +23,7 @@
+     $user = User::factory()->withTwoFactor()->create();
+ 
+     $this->post(route('login'), [
+-        'email' => $user->email,
++        'username' => $user->username,
+         'password' => 'password',
+     ]);
+ 
+diff --git a/vite.config.ts b/vite.config.ts
+index 4b01922..8033237 100644
+--- a/vite.config.ts
++++ b/vite.config.ts
+@@ -15,6 +15,9 @@ export default defineConfig({
+                 bunny('Instrument Sans', {
+                     weights: [400, 500, 600],
+                 }),
++                bunny('Inter', {
++                    weights: [400, 500, 700],
++                }),
+             ],
+         }),
+         inertia(),

@@ -22,14 +22,18 @@ class DatabaseSeeder extends Seeder
     User::factory()->create
      ([
         'name' => 'Admin BULOG',
+        'username' => 'admin',
         'email' => 'admin@bulog.test',
+        'phone' => '081200000001',
         'role' => Role::Admin,
       ]);
 
     User::factory()->create
       ([
         'name' => 'Manager BULOG',
+        'username' => 'manager',
         'email' => 'manager@bulog.test',
+        'phone' => '081200000002',
         'role' => Role::Manager,
       ]);
     }
