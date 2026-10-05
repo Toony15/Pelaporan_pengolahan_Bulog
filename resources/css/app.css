@@ -170,3 +170,8 @@
         @apply bg-background text-foreground;
     }
 }
+
+/* Lebar toast Bulog (desain Figma) */
+[data-sonner-toaster] {
+    --width: 447px;
+}

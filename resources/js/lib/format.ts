@@ -1,0 +1,22 @@
+const BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sept', 'Okt', 'Nov', 'Des'];
+
+/** "2026-09-25" -> "25 Sept 2026" */
+export function formatTanggal(iso: string): string {
+    const [y, m, d] = iso.slice(0, 10).split('-').map(Number);
+
+    return y && m && d ? `${d} ${BULAN[m - 1]} ${y}` : iso;
+}
+
+export function formatUkuran(bytes: number): string {
+    return bytes >= 1024 * 1024
+        ? `${(bytes / 1024 / 1024).toFixed(1)} MB`
+        : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+/** Tanggal hari ini (zona waktu lokal) dalam format YYYY-MM-DD. */
+export function hariIni(): string {
+    const n = new Date();
+    const p = (v: number) => String(v).padStart(2, '0');
+
+    return `${n.getFullYear()}-${p(n.getMonth() + 1)}-${p(n.getDate())}`;
+}

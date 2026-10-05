@@ -3,6 +3,7 @@ import { initializeTheme } from '@/composables/useAppearance';
 import AppLayout from '@/layouts/AppLayout.vue';
 import AuthLayout from '@/layouts/AuthLayout.vue';
 import BulogAuthLayout from '@/layouts/BulogAuthLayout.vue';
+import PicLayout from '@/layouts/PicLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { initializeFlashToast } from '@/lib/flashToast';
 
@@ -18,6 +19,8 @@ void createInertiaApp({
                 return BulogAuthLayout;
             case name.startsWith('auth/'):
                 return AuthLayout;
+            case name.startsWith('WorkBooks/'):
+                return PicLayout;
             case name.startsWith('settings/'):
                 return [AppLayout, SettingsLayout];
             default:

@@ -7,10 +7,18 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Attachment extends Model
 {
-    protected $fillable = ['type', 'path', 'original_name', 'mime_type', 'size'];
+    protected $fillable = ['category', 'type', 'path', 'original_name', 'mime_type', 'size'];
 
-    public function logEntry(): BelongsTo
+    protected $appends = ['url'];
+
+    public function workBook(): BelongsTo
     {
-        return $this->belongsTo(LogEntry::class);
+        return $this->belongsTo(WorkBook::class);
+    }
+
+    /** File disimpan privat; diakses lewat route yang memeriksa hak akses. */
+    public function getUrlAttribute(): string
+    {
+        return route('attachments.show', $this->id, false);
     }
 }
