@@ -1,10 +1,28 @@
 <script setup lang="ts">
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { Clapperboard, Image as ImageIcon, Plus, Trash2 } from '@lucide/vue';
+import {
+    Calendar,
+    EllipsisVertical,
+    Eye,
+    FileText,
+    Image as ImageIcon,
+    MapPin,
+    Pencil,
+    Plus,
+    Scale,
+    Trash2,
+    Video,
+} from '@lucide/vue';
 import { computed, ref } from 'vue';
 import WorkBookController from '@/actions/App/Http/Controllers/WorkBookController';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
-import { formatTanggal } from '@/lib/format';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { formatAngka, formatTanggal } from '@/lib/format';
 import { notify } from '@/lib/notify';
 import type { WorkBookCard } from '@/types/work-book';
 
@@ -16,11 +34,17 @@ const props = defineProps<{
 const page = usePage();
 const userName = computed(() => page.props.auth.user.name);
 
+const sum = (pick: (wb: WorkBookCard) => number) =>
+    props.workBooks.reduce((total, wb) => total + pick(wb), 0);
+
 const stats = computed(() => [
-    { label: 'Laporan', value: props.workBooks.length },
-    { label: 'Video', value: props.workBooks.reduce((n, wb) => n + wb.video_count, 0) },
-    { label: 'Foto', value: props.workBooks.reduce((n, wb) => n + wb.photo_count, 0) },
+    { label: 'Laporan', value: props.workBooks.length, icon: FileText, tile: 'bg-[#E6EEF9] text-[#3E5C94]' },
+    { label: 'Video', value: sum((wb) => wb.video_count), icon: Video, tile: 'bg-[#FFF3DB] text-[#D9822B]' },
+    { label: 'Foto', value: sum((wb) => wb.photo_count), icon: ImageIcon, tile: 'bg-[#E1F4EA] text-[#2F8F5B]' },
 ]);
+
+const lokasi = (wb: WorkBookCard) => [wb.village, wb.regency].filter(Boolean).join(', ') || '-';
+const jumlah = (kg: number) => `${formatAngka(kg, 2)} kg (${formatAngka(kg / 1000, 3)} ton)`;
 
 const target = ref<WorkBookCard | null>(null);
 const confirmOpen = ref(false);
@@ -51,48 +75,51 @@ function destroy() {
 <template>
     <Head title="Beranda" />
 
-    <header class="text-center text-[#294161]">
-        <h1 class="text-3xl font-bold md:text-4xl">Selamat Datang {{ userName }}</h1>
-        <p class="mt-1 text-lg font-bold md:text-xl">
-            {{ canCreate ? 'PIC Pengolahan Bulog' : 'Pantau Laporan PIC Pengolahan Bulog' }}
-        </p>
-    </header>
+    <div class="flex flex-wrap items-end justify-between gap-4">
+        <div class="min-w-0">
+            <h1 class="truncate text-3xl font-extrabold tracking-tight sm:text-4xl">Halo, {{ userName }}</h1>
+            <p class="mt-1 text-sm text-[#6B7690]">
+                {{ canCreate ? 'PIC Pengolahan Bulog' : 'Pantau laporan PIC Pengolahan Bulog' }}
+            </p>
+        </div>
+    </div>
 
-    <dl class="mt-8 grid grid-cols-3 gap-0.5 overflow-hidden rounded-md">
+    <dl class="mt-6 grid grid-cols-3 gap-2 sm:gap-4">
         <div
             v-for="stat in stats"
             :key="stat.label"
-            class="flex flex-col-reverse items-center justify-center bg-[#2157A1] px-2 py-4 text-white"
+            class="flex flex-col gap-3 rounded-2xl border border-[#E5E9F0] bg-white p-3 shadow-sm sm:flex-row sm:items-center sm:gap-3 sm:p-4"
         >
-            <dt class="text-sm font-bold md:text-base">{{ stat.label }}</dt>
-            <dd class="text-3xl leading-tight font-bold md:text-4xl">{{ stat.value }}</dd>
+            <span class="flex size-11 shrink-0 items-center justify-center rounded-xl" :class="stat.tile">
+                <component :is="stat.icon" class="size-5" aria-hidden="true" />
+            </span>
+            <div class="flex flex-col-reverse">
+                <dt class="text-xs text-[#6B7690] sm:text-sm">{{ stat.label }}</dt>
+                <dd class="text-2xl leading-tight font-extrabold sm:text-3xl">{{ stat.value }}</dd>
+            </div>
         </div>
     </dl>
 
-    <Link
-        v-if="canCreate"
-        :href="WorkBookController.create()"
-        class="mt-6 inline-flex h-[49px] items-center gap-4 rounded-[10px] border border-[#395475] bg-[#FFBF4C] pr-8 pl-3 text-[15px] font-bold text-white outline-none transition-colors hover:bg-[#F5B13A] focus-visible:ring-4 focus-visible:ring-[#395E90]/40"
-        data-test="create-workbook"
-    >
-        <span class="flex size-7 items-center justify-center rounded-full bg-white text-[#FFBF4C]">
-            <Plus class="size-5" :stroke-width="3" />
-        </span>
-        Buat laporan kerja PIC
-    </Link>
+    <div class="mt-8 flex flex-wrap items-center justify-between gap-3">
+        <h2 class="text-xl font-bold">{{ workBooks.length }} laporan kerja</h2>
 
-    <section v-if="workBooks.length" class="mt-10">
-        <h2 class="mb-4 text-lg font-bold text-[#E99E18]">
-            {{ workBooks.length }} Laporan Kerja terdeteksi
-        </h2>
+        <Link
+            v-if="canCreate"
+            :href="WorkBookController.create()"
+            class="inline-flex h-11 items-center gap-2 rounded-xl bg-[#F5A623] px-5 text-sm font-bold text-[#0F2038] shadow-md outline-none transition-colors hover:bg-[#E89A18] focus-visible:ring-4 focus-visible:ring-[#F5A623]/40"
+            data-test="create-workbook"
+        >
+            <Plus class="size-4" :stroke-width="2.5" /> Buat laporan kerja
+        </Link>
+    </div>
 
-        <div class="grid gap-8 rounded-[28px] border border-[#395E90] p-6 sm:grid-cols-2 md:p-10 lg:grid-cols-3">
-            <div v-for="wb in workBooks" :key="wb.id" class="relative flex">
+    <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div v-for="wb in workBooks" :key="wb.id" class="relative">
             <Link
                 :href="WorkBookController.show(wb.id)"
-                class="flex w-full flex-col overflow-hidden rounded-[22px] border border-[#AF7A1C] bg-white outline-none transition-shadow hover:shadow-lg focus-visible:ring-4 focus-visible:ring-[#AF7A1C]/30"
+                class="flex h-full flex-col overflow-hidden rounded-2xl border border-[#E5E9F0] bg-white shadow-sm outline-none transition-shadow hover:shadow-md focus-visible:ring-4 focus-visible:ring-[#1F4E8C]/20"
             >
-                <div class="h-40 bg-[#AF7A1C]/5">
+                <div class="relative h-32 shrink-0 bg-[#E6EEF9]">
                     <img
                         v-if="wb.cover_url"
                         :src="wb.cover_url"
@@ -100,51 +127,92 @@ function destroy() {
                         loading="lazy"
                         class="size-full object-cover"
                     />
+                    <span v-else class="flex size-full items-center justify-center text-[#9AA3B5]">
+                        <ImageIcon class="size-8" aria-hidden="true" />
+                    </span>
+                    <div class="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#0F2038]/70 to-transparent" />
                     <span
-                        v-else
-                        class="flex size-full items-center justify-center text-xs font-bold text-[#AF7A1C]"
+                        class="absolute bottom-2.5 left-3 inline-flex items-center gap-1.5 text-xs font-semibold text-white"
                     >
-                        Gambar foto bersama mitra
+                        <Calendar class="size-3.5" aria-hidden="true" />
+                        {{ formatTanggal(wb.absorption_date) }}
                     </span>
                 </div>
 
-                <div
-                    class="relative -mt-5 flex flex-1 flex-col rounded-t-[22px] border-t border-[#AF7A1C] bg-white px-5 pt-5 pb-4"
-                >
-                    <p class="truncate text-lg font-bold text-[#395E90]">{{ wb.mitra_pengolahan }}</p>
-                    <p class="mt-1 text-base font-bold text-[#395E90]">{{ formatTanggal(wb.absorption_date) }}</p>
-                    <p v-if="!canCreate" class="mt-1 truncate text-sm text-[#AF7A1C]">PIC: {{ wb.pic_name }}</p>
+                <div class="flex flex-1 flex-col gap-2 p-4">
+                    <h3 class="truncate text-lg font-bold">{{ wb.mitra_pengolahan }}</h3>
+                    <p class="flex items-center gap-2 text-sm text-[#5B6784]">
+                        <MapPin class="size-4 shrink-0" aria-hidden="true" />
+                        <span class="truncate">{{ lokasi(wb) }}</span>
+                    </p>
+                    <p class="flex items-center gap-2 text-sm text-[#5B6784]">
+                        <Scale class="size-4 shrink-0" aria-hidden="true" />
+                        {{ jumlah(wb.absorption_kg) }}
+                    </p>
+                    <p v-if="!canCreate" class="truncate text-xs text-[#6B7690]">PIC: {{ wb.pic_name }}</p>
 
-                    <div class="mt-auto flex items-center gap-5 pt-6 text-xs font-bold text-[#294161]">
-                        <span class="inline-flex items-center gap-1.5">
-                            {{ wb.video_count }} video <Clapperboard class="size-4" />
+                    <div class="mt-auto flex flex-wrap gap-2 pt-1">
+                        <span
+                            class="inline-flex items-center gap-1.5 rounded-full bg-[#FFF3DB] px-2.5 py-1 text-xs font-semibold text-[#B7731A]"
+                        >
+                            <Video class="size-3.5" aria-hidden="true" /> {{ wb.video_count }} video
                         </span>
-                        <span class="inline-flex items-center gap-1.5">
-                            {{ wb.photo_count }} Foto <ImageIcon class="size-4" />
+                        <span
+                            class="inline-flex items-center gap-1.5 rounded-full bg-[#E6EEF9] px-2.5 py-1 text-xs font-semibold text-[#1F4E8C]"
+                        >
+                            <ImageIcon class="size-3.5" aria-hidden="true" /> {{ wb.photo_count }} foto
                         </span>
                     </div>
                 </div>
             </Link>
-            <button
-                v-if="canCreate"
-                type="button"
-                class="absolute top-3 right-3 z-10 flex size-9 items-center justify-center rounded-full bg-white/95 text-[#EC0D0D] shadow outline-none transition-colors hover:bg-red-50 focus-visible:ring-4 focus-visible:ring-red-600/25"
-                :aria-label="`Hapus laporan ${wb.mitra_pengolahan}`"
-                data-test="delete-card"
-                @click="askDelete(wb)"
-            >
-                <Trash2 class="size-4" />
-            </button>
-            </div>
-        </div>
-    </section>
 
-    <section
-        v-else
-        class="mt-12 flex min-h-[313px] items-center justify-center rounded-[22px] border border-[#395E90] p-8"
+            <DropdownMenu :modal="false">
+                <DropdownMenuTrigger as-child>
+                    <button
+                        type="button"
+                        class="absolute top-3 right-3 z-10 flex size-8 items-center justify-center rounded-full bg-white/95 text-[#0F2038] shadow outline-none transition-colors hover:bg-white focus-visible:ring-4 focus-visible:ring-[#1F4E8C]/30"
+                        :aria-label="`Menu laporan ${wb.mitra_pengolahan}`"
+                        data-test="card-menu"
+                    >
+                        <EllipsisVertical class="size-4" />
+                    </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" class="w-44">
+                    <DropdownMenuItem as-child>
+                        <Link :href="WorkBookController.show(wb.id)"><Eye /> Lihat detail</Link>
+                    </DropdownMenuItem>
+                    <template v-if="canCreate">
+                        <DropdownMenuItem as-child>
+                            <Link :href="WorkBookController.edit(wb.id)"><Pencil /> Edit</Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem variant="destructive" data-test="card-delete" @select="askDelete(wb)">
+                            <Trash2 /> Hapus
+                        </DropdownMenuItem>
+                    </template>
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
+
+        <Link
+            v-if="canCreate"
+            :href="WorkBookController.create()"
+            class="flex min-h-[260px] flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-[#BAC6D8] p-6 text-center outline-none transition-colors hover:border-[#F5A623] hover:bg-[#FFF3DB] focus-visible:border-[#F5A623] focus-visible:bg-[#FFF3DB] focus-visible:ring-4 focus-visible:ring-[#F5A623]/30"
+            data-test="create-card"
+        >
+            <span class="mb-3 flex size-11 items-center justify-center rounded-full bg-[#F5A623] text-[#0F2038]">
+                <Plus class="size-5" :stroke-width="2.5" />
+            </span>
+            <span class="text-sm font-bold text-[#1F4E8C]">Buat laporan baru</span>
+            <span class="text-xs text-[#6B7690]">Catat penyerapan hari ini</span>
+        </Link>
+    </div>
+
+    <p
+        v-if="!canCreate && !workBooks.length"
+        class="mt-4 rounded-2xl border border-dashed border-[#BAC6D8] p-10 text-center text-sm text-[#6B7690]"
     >
-        <p class="text-center text-2xl font-bold text-[#E99E18] md:text-3xl">Belum ada laporan kerja</p>
-    </section>
+        Belum ada laporan kerja.
+    </p>
 
     <ConfirmDialog
         v-model:open="confirmOpen"

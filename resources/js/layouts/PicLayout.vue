@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { CircleUser } from '@lucide/vue';
+import { EllipsisVertical } from '@lucide/vue';
 import { computed } from 'vue';
 import {
     DropdownMenu,
@@ -13,47 +13,53 @@ import { dashboard } from '@/routes';
 
 const page = usePage();
 const user = computed(() => page.props.auth.user);
+const initial = computed(() => user.value.name.trim().charAt(0).toUpperCase());
 </script>
 
 <template>
     <div
-        class="flex min-h-svh flex-col bg-white font-[Inter,ui-sans-serif,system-ui,sans-serif] text-[#395E90]"
+        class="flex min-h-svh flex-col bg-white font-[Inter,ui-sans-serif,system-ui,sans-serif] text-[#0F2038]"
     >
-        <header
-            class="flex h-24 items-center justify-between border-b border-[#839DC1] px-6 md:h-[131px] md:px-10"
-        >
-            <Link :href="dashboard()" aria-label="Bulog, beranda">
-                <img
-                    src="/images/bulog-logo.png"
-                    alt="Bulog, mengantarkan kebaikan"
-                    width="150"
-                    height="50"
-                    class="h-auto w-[130px] md:w-[150px]"
-                />
-            </Link>
+        <header class="border-b border-[#F2F4F8] bg-white">
+            <div class="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
+                <Link :href="dashboard()" aria-label="Bulog, beranda">
+                    <img
+                        src="/images/bulog-logo.png"
+                        alt="Bulog, mengantarkan kebaikan"
+                        width="150"
+                        height="50"
+                        class="h-9 w-auto"
+                    />
+                </Link>
 
-            <DropdownMenu>
-                <DropdownMenuTrigger as-child>
-                    <button
-                        type="button"
-                        class="rounded-full text-[#294161] outline-none focus-visible:ring-4 focus-visible:ring-[#395E90]/25"
-                        aria-label="Menu akun"
-                        data-test="user-menu"
-                    >
-                        <CircleUser class="size-10 md:size-12" :stroke-width="1.5" />
-                    </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" class="min-w-56">
-                    <UserMenuContent :user="user" />
-                </DropdownMenuContent>
-            </DropdownMenu>
+                <DropdownMenu>
+                    <DropdownMenuTrigger as-child>
+                        <button
+                            type="button"
+                            class="flex items-center gap-2.5 rounded-full border border-[#E5E9F0] bg-white py-1 pr-3 pl-1 text-sm font-bold shadow-sm outline-none transition-colors hover:bg-[#F5F8FC] focus-visible:ring-4 focus-visible:ring-[#1F4E8C]/20"
+                            aria-label="Menu akun"
+                            data-test="user-menu"
+                        >
+                            <span
+                                class="flex size-8 items-center justify-center rounded-full bg-[#1F4E8C] text-xs font-bold text-white"
+                            >
+                                {{ initial }}
+                            </span>
+                            <span class="max-w-[140px] truncate">{{ user.name }}</span>
+                            <EllipsisVertical class="size-4 text-[#5B6784]" />
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" class="min-w-56">
+                        <UserMenuContent :user="user" />
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
         </header>
 
-        <main class="mx-auto w-full max-w-[1272px] flex-1 px-4 py-10 md:px-8 md:py-14">
+        <main class="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
             <slot />
         </main>
 
-        <footer class="h-24 bg-[#294161] md:h-[132px]" aria-hidden="true" />
         <Toaster position="top-center" :offset="24" />
     </div>
 </template>

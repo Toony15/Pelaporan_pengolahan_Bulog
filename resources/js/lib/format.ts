@@ -20,3 +20,23 @@ export function hariIni(): string {
 
     return `${n.getFullYear()}-${p(n.getMonth() + 1)}-${p(n.getDate())}`;
 }
+
+/** 10000 -> "10.000", 1.5 -> "1,5" (format Indonesia). */
+export function formatAngka(value: number, maxFraction = 2): string {
+    return new Intl.NumberFormat('id-ID', { maximumFractionDigits: maxFraction }).format(value);
+}
+
+/** "10.000" -> 10000, "1,5" -> 1.5, "1.5" -> 1.5. Mengembalikan null bila bukan angka. */
+export function parseAngka(text: string): number | null {
+    const s = text.trim().replace(/\s/g, '');
+
+    if (!s) {
+        return null;
+    }
+
+    const n = /^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)
+        ? Number(s.replace(/\./g, '').replace(',', '.'))
+        : Number(s.replace(',', '.'));
+
+    return Number.isFinite(n) && n >= 0 ? n : null;
+}

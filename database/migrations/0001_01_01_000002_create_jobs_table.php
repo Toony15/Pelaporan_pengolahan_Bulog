@@ -45,6 +45,11 @@ return new class extends Migration
 
             $table->index(['connection', 'queue', 'failed_at']);
         });
+        Schema::table('work_books', function (Blueprint $table) {
+            $table->string('village')->nullable();
+            $table->string('regency')->nullable();
+            $table->unsignedBigInteger('absorption_kg')->nullable();
+        });
     }
 
     /**
@@ -55,5 +60,9 @@ return new class extends Migration
         Schema::dropIfExists('jobs');
         Schema::dropIfExists('job_batches');
         Schema::dropIfExists('failed_jobs');
+        Schema::table('work_books', function (Blueprint $table) {
+        $table->dropColumn(['village', 'regency', 'absorption_kg']);
+    });
     }
+    
 };

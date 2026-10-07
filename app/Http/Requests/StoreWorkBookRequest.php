@@ -19,8 +19,9 @@ class StoreWorkBookRequest extends FormRequest
         return [
             'pic_name' => ['required', 'string', 'max:255'],
             'mitra_pengolahan' => ['required', 'string', 'max:255'],
-            'kancab' => ['required', 'string', 'max:255'],
-            'kanwil' => ['required', 'string', 'max:255'],
+            'village' => ['required', 'string', 'max:255'],
+            'regency' => ['required', 'string', 'max:255'],
+            'absorption_kg' => ['required', 'numeric', 'gt:0', 'max:9999999999'],
             'absorption_date' => ['required', 'date'],
             ...$this->fileRules(),
         ];
@@ -49,11 +50,14 @@ class StoreWorkBookRequest extends FormRequest
     {
         $messages = [];
 
-        foreach (['pic_name' => 'Nama PIC', 'mitra_pengolahan' => 'Nama mitra pengolahan', 'kancab' => 'Kancab', 'kanwil' => 'Kanwil', 'absorption_date' => 'Tanggal penyerapan'] as $field => $label) {
+        foreach (['pic_name' => 'Nama PIC', 'mitra_pengolahan' => 'Nama mitra pengolahan', 'village' => 'Desa/Kelurahan', 'regency' => 'Kota/Kabupaten', 'absorption_kg' => 'Jumlah penyerapan', 'absorption_date' => 'Tanggal penyerapan'] as $field => $label) {
             $messages["$field.required"] = "$label wajib diisi.";
             $messages["$field.max"] = "$label maksimal 255 karakter.";
         }
         $messages['absorption_date.date'] = 'Tanggal penyerapan tidak valid.';
+        $messages['absorption_kg.numeric'] = 'Jumlah penyerapan harus berupa angka.';
+        $messages['absorption_kg.gt'] = 'Jumlah penyerapan harus lebih dari 0.';
+        $messages['absorption_kg.max'] = 'Jumlah penyerapan terlalu besar.';
 
         foreach (AttachmentCategory::cases() as $category) {
             $label = $category->label();

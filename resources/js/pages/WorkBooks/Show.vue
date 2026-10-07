@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ArrowLeft, Pencil, Trash2 } from '@lucide/vue';
-import { ref } from 'vue';
+import { Pencil, Trash2 } from '@lucide/vue';
+import { computed, ref } from 'vue';
 import WorkBookController from '@/actions/App/Http/Controllers/WorkBookController';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
-import { dashboard } from '@/routes';
-import { formatTanggal } from '@/lib/format';
+import PageCrumb from '@/components/PageCrumb.vue';
+import { formatAngka, formatTanggal } from '@/lib/format';
 import { notify } from '@/lib/notify';
 import type { AttachmentCategory, WorkBookDetail } from '@/types/work-book';
 
@@ -17,18 +17,22 @@ const props = defineProps<{
 const confirmOpen = ref(false);
 const deleting = ref(false);
 
-const fields = [
-    ['Nama Pic', props.workBook.pic_name],
-    ['Nama Mitra pengolahan', props.workBook.mitra_pengolahan],
-    ['Kancab', props.workBook.kancab],
-    ['Kanwil', props.workBook.kanwil],
+const rows = computed(() => [
+    ['Nama PIC', props.workBook.pic_name],
+    ['Nama mitra pengolahan', props.workBook.mitra_pengolahan],
+    ['Desa / Kelurahan', props.workBook.village || '-'],
+    ['Kota / Kabupaten', props.workBook.regency || '-'],
+    [
+        'Jumlah penyerapan',
+        `${formatAngka(props.workBook.absorption_kg, 2)} kg (${formatAngka(props.workBook.absorption_kg / 1000, 3)} ton)`,
+    ],
     ['Tanggal penyerapan', formatTanggal(props.workBook.absorption_date)],
-] as const;
+]);
 
 const photos: [AttachmentCategory, string][] = [
-    ['foto_gabah', 'Foto Gabah'],
+    ['foto_gabah', 'Foto gabah'],
     ['foto_mitra', 'Foto bersama mitra'],
-    ['foto_ktp', 'Foto ktp mitra'],
+    ['foto_ktp', 'Foto KTP mitra'],
 ];
 
 function destroy() {
@@ -46,67 +50,92 @@ function destroy() {
 <template>
     <Head :title="`Laporan ${workBook.mitra_pengolahan}`" />
 
-    <Link :href="dashboard()" class="mb-4 inline-flex items-center gap-1.5 text-sm font-bold hover:underline">
-        <ArrowLeft class="size-4" /> Kembali
-    </Link>
-    <h1 class="text-center text-lg font-bold text-[#AF7A1C] md:text-xl">Laporan kerja PIC</h1>
+    <PageCrumb current="Detail laporan" />
 
-    <div class="mx-auto mt-8 max-w-[795px] rounded-[28px] border border-[#395E90] p-6 md:p-12">
-        <dl class="flex flex-col gap-5">
-            <div v-for="[label, value] in fields" :key="label">
-                <dt class="mb-1.5 px-3 text-sm text-[#AF7A1C]">{{ label }}</dt>
-                <dd class="rounded-xl border border-[#395E90] px-5 py-3.5 text-lg font-bold text-[#294161] md:text-2xl">
-                    {{ value }}
-                </dd>
-            </div>
-        </dl>
+    <div class="mt-3 flex flex-wrap items-end justify-between gap-4">
+        <div class="min-w-0">
+            <h1 class="truncate text-3xl font-extrabold tracking-tight sm:text-4xl">
+                {{ workBook.mitra_pengolahan }}
+            </h1>
+            <p class="mt-1 text-sm text-[#6B7690]">
+                {{ formatTanggal(workBook.absorption_date) }} · PIC {{ workBook.pic_name }}
+            </p>
+        </div>
 
-        <section class="mt-10">
-            <h2 class="mb-2 text-center text-sm text-[#AF7A1C]">Video penyerapan</h2>
-            <video
-                v-if="workBook.attachments.video"
-                :src="workBook.attachments.video.url"
-                controls
-                preload="metadata"
-                class="w-full rounded-xl border border-[#395E90] bg-black"
-            />
-            <p v-else class="text-center text-sm">Belum diunggah</p>
-        </section>
-
-        <section class="mt-8 grid gap-6 sm:grid-cols-3">
-            <figure v-for="[key, label] in photos" :key="key">
-                <figcaption class="mb-2 text-center text-sm text-[#AF7A1C]">{{ label }}</figcaption>
-                <a
-                    v-if="workBook.attachments[key]"
-                    :href="workBook.attachments[key]!.url"
-                    target="_blank"
-                    rel="noopener"
-                    class="block overflow-hidden rounded-xl border border-[#395E90]"
-                    :aria-label="`Buka ${label} ukuran penuh`"
-                >
-                    <img :src="workBook.attachments[key]!.url" :alt="label" loading="lazy" class="aspect-square w-full object-cover" />
-                </a>
-                <p v-else class="text-center text-sm">Belum diunggah</p>
-            </figure>
-        </section>
-
-        <div v-if="canManage" class="mt-10 flex flex-wrap items-center gap-3">
+        <div v-if="canManage" class="flex items-center gap-3">
             <Link
                 :href="WorkBookController.edit(workBook.id)"
-                class="inline-flex h-[46px] items-center gap-2 rounded-xl bg-[#294161] px-6 text-base font-medium text-white outline-none transition-colors hover:bg-[#1f3350] focus-visible:ring-4 focus-visible:ring-[#395E90]/40"
+                class="inline-flex h-11 items-center gap-2 rounded-xl bg-[#F5A623] px-5 text-sm font-bold text-[#0F2038] shadow-md outline-none transition-colors hover:bg-[#E89A18] focus-visible:ring-4 focus-visible:ring-[#F5A623]/40"
                 data-test="edit-workbook"
             >
                 <Pencil class="size-4" /> Edit
             </Link>
             <button
                 type="button"
-                class="inline-flex h-[46px] items-center gap-2 rounded-xl border border-red-600 px-6 text-base font-medium text-red-600 outline-none transition-colors hover:bg-red-50 focus-visible:ring-4 focus-visible:ring-red-600/25"
+                class="inline-flex h-11 items-center gap-2 rounded-xl border border-red-200 bg-white px-5 text-sm font-bold text-red-600 outline-none transition-colors hover:bg-red-50 focus-visible:ring-4 focus-visible:ring-red-600/20"
                 data-test="delete-workbook"
                 @click="confirmOpen = true"
             >
                 <Trash2 class="size-4" /> Hapus
             </button>
         </div>
+    </div>
+
+    <div class="mt-6 grid items-start gap-5 lg:grid-cols-[1.25fr_1fr]">
+        <section class="rounded-2xl border border-[#E0E6EF] bg-white p-6 shadow-sm">
+            <h2 class="text-xl font-bold">Data penyerapan</h2>
+            <dl class="mt-3 divide-y divide-[#EEF1F6]">
+                <div v-for="[label, value] in rows" :key="label" class="grid gap-1 py-3 sm:grid-cols-[170px_1fr]">
+                    <dt class="text-sm text-[#6B7690]">{{ label }}</dt>
+                    <dd class="text-sm font-bold break-words">{{ value }}</dd>
+                </div>
+            </dl>
+        </section>
+
+        <section class="rounded-2xl border border-[#E0E6EF] bg-white p-6 shadow-sm">
+            <h2 class="text-xl font-bold">Dokumentasi penyerapan</h2>
+
+            <div class="mt-4">
+                <p class="mb-2 text-sm font-bold">Video penyerapan</p>
+                <video
+                    v-if="workBook.attachments.video"
+                    :src="workBook.attachments.video.url"
+                    controls
+                    preload="metadata"
+                    class="w-full rounded-xl border border-[#E0E6EF] bg-black"
+                />
+                <p v-else class="rounded-xl border border-dashed border-[#C9D3E3] bg-[#F5F8FC] p-4 text-center text-sm text-[#6B7690]">
+                    Belum ada video
+                </p>
+            </div>
+
+            <div class="mt-5 grid grid-cols-3 gap-3">
+                <figure v-for="[key, label] in photos" :key="key">
+                    <a
+                        v-if="workBook.attachments[key]"
+                        :href="workBook.attachments[key]!.url"
+                        target="_blank"
+                        rel="noopener"
+                        class="block overflow-hidden rounded-xl border border-[#E0E6EF] outline-none focus-visible:ring-4 focus-visible:ring-[#1F4E8C]/20"
+                        :aria-label="`Buka ${label} ukuran penuh`"
+                    >
+                        <img
+                            :src="workBook.attachments[key]!.url"
+                            :alt="label"
+                            loading="lazy"
+                            class="aspect-square w-full object-cover"
+                        />
+                    </a>
+                    <div
+                        v-else
+                        class="flex aspect-square items-center justify-center rounded-xl border border-dashed border-[#C9D3E3] bg-[#F5F8FC] p-2 text-center text-xs text-[#6B7690]"
+                    >
+                        Belum ada
+                    </div>
+                    <figcaption class="mt-1.5 text-center text-xs text-[#6B7690]">{{ label }}</figcaption>
+                </figure>
+            </div>
+        </section>
     </div>
 
     <ConfirmDialog

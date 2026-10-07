@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
-import { ArrowLeft } from '@lucide/vue';
+import { Head } from '@inertiajs/vue3';
 import WorkBookController from '@/actions/App/Http/Controllers/WorkBookController';
+import PageCrumb from '@/components/PageCrumb.vue';
 import WorkBookForm from '@/components/WorkBookForm.vue';
 import { dashboard } from '@/routes';
 
@@ -11,15 +11,15 @@ defineProps<{ defaultPicName: string }>();
 <template>
     <Head title="Buat laporan kerja" />
 
-    <Link :href="dashboard()" class="mb-4 inline-flex items-center gap-1.5 text-sm font-bold hover:underline">
-        <ArrowLeft class="size-4" /> Kembali
-    </Link>
-    <h1 class="text-center text-lg font-bold text-[#AF7A1C] md:text-xl">Buku laporan kerja PIC</h1>
+    <PageCrumb current="Laporan baru" />
+    <h1 class="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">Buat laporan kerja PIC</h1>
 
-    <div class="mx-auto mt-8 max-w-[795px] rounded-[28px] border border-[#395E90] p-6 md:p-12">
+    <div class="mt-6">
         <WorkBookForm
             :form="WorkBookController.store.form()"
+            :cancel-href="dashboard()"
             :default-pic-name="defaultPicName"
+            submit-label="Buat Laporan"
             fail-message="Data gagal ditambahkan. Periksa kembali isian Anda."
         />
     </div>

@@ -17,7 +17,7 @@ use Inertia\Response;
 
 class WorkBookController extends Controller
 {
-    private const FIELDS = ['pic_name', 'mitra_pengolahan', 'kancab', 'kanwil', 'absorption_date'];
+    private const FIELDS = ['pic_name', 'mitra_pengolahan', 'village', 'regency', 'absorption_kg', 'absorption_date'];
 
     /** Beranda: PIC melihat miliknya, Admin/Manager melihat semua. */
     public function index(): Response
@@ -36,6 +36,9 @@ class WorkBookController extends Controller
                 'id' => $wb->id,
                 'pic_name' => $wb->pic_name,
                 'mitra_pengolahan' => $wb->mitra_pengolahan,
+                'village' => $wb->village,
+                'regency' => $wb->regency,
+                'absorption_kg' => (float) $wb->absorption_kg,
                 'absorption_date' => $wb->absorption_date->toDateString(),
                 'video_count' => $wb->attachments->where('type', 'video')->count(),
                 'photo_count' => $wb->attachments->where('type', 'photo')->count(),
@@ -167,8 +170,9 @@ class WorkBookController extends Controller
             'id' => $workBook->id,
             'pic_name' => $workBook->pic_name,
             'mitra_pengolahan' => $workBook->mitra_pengolahan,
-            'kancab' => $workBook->kancab,
-            'kanwil' => $workBook->kanwil,
+            'village' => $workBook->village,
+            'regency' => $workBook->regency,
+            'absorption_kg' => (float) $workBook->absorption_kg,
             'absorption_date' => $workBook->absorption_date->toDateString(),
             'attachments' => $workBook->attachments->mapWithKeys(fn ($a) => [
                 $a->category => [
