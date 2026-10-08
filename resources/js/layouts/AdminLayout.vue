@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Toaster } from '@/components/ui/sonner';
 import UserMenuContent from '@/components/UserMenuContent.vue';
+import AdminDashboardController from '@/actions/App/Http/Controllers/Admin/DashboardController';
 import { dashboard } from '@/routes';
 
 const page = usePage();
@@ -21,6 +22,7 @@ const roleLabel = computed(() => (isAdmin.value ? 'Administrator' : 'Manajer'));
 
 const titles: Record<string, string> = {
     'Admin/Home': 'Beranda',
+    'Admin/Dashboard': 'Dashboard',
     'WorkBooks/Show': 'Detail laporan',
 };
 const title = computed(() => titles[page.component] ?? 'Beranda');
@@ -32,7 +34,7 @@ const today = new Intl.DateTimeFormat('id-ID', {
     year: 'numeric',
 }).format(new Date());
 
-// Menu "Dashboard" dan "Kelola akun" menyusul pada tahap berikutnya.
+// Menu "Kelola akun" menyusul pada tahap berikutnya.
 const nav = computed(() => [
     {
         label: 'Beranda',
@@ -41,7 +43,13 @@ const nav = computed(() => [
         active: page.component === 'Admin/Home' || page.component.startsWith('WorkBooks/'),
         soon: false,
     },
-    { label: 'Dashboard', icon: ChartColumn, href: null, active: false, soon: true },
+    {
+        label: 'Dashboard',
+        icon: ChartColumn,
+        href: AdminDashboardController(),
+        active: page.component === 'Admin/Dashboard',
+        soon: false,
+    },
     ...(isAdmin.value
         ? [{ label: 'Kelola akun', icon: Users, href: null, active: false, soon: true }]
         : []),

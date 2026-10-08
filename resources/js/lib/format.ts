@@ -45,3 +45,20 @@ export function parseAngka(text: string): number | null {
 export function formatTon(value: number): string {
     return formatAngka(value, value >= 100 ? 0 : value >= 1 ? 1 : 2);
 }
+
+export const BULAN_PENDEK = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+
+export const BULAN_PANJANG = [
+    'Januari',
+    'Februari',
+    'Maret',
+    'April',
+    'Mei',
+    'Juni',
+    'Juli',
+    'Agustus',
+    'September',
+    'Oktober',
+    'November',
+    'Desember',
+];

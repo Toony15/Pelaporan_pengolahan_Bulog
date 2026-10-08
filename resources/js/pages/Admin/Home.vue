@@ -2,6 +2,7 @@
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { ArrowRight, ChartColumn, ChevronDown, ChevronUp, FileText, Scale, Store, Users } from '@lucide/vue';
 import { computed } from 'vue';
+import DashboardController from '@/actions/App/Http/Controllers/Admin/DashboardController';
 import WorkBookController from '@/actions/App/Http/Controllers/WorkBookController';
 import MiniBars from '@/components/admin/MiniBars.vue';
 import { formatAngka, formatTon } from '@/lib/format';
@@ -61,11 +62,17 @@ function initials(name: string): string {
         .join('');
 }
 
-// Dashboard & Kelola akun menyusul; sementara tampil nonaktif.
+// Kelola akun menyusul; sementara tampil nonaktif.
 const shortcuts = computed(() => [
-    { label: 'Dashboard', note: 'Grafik per kota dan per bulan', icon: ChartColumn, tile: 'bg-[#E6EEF9] text-[#1F4E8C]' },
+    {
+        label: 'Dashboard',
+        note: 'Grafik per kota dan per bulan',
+        icon: ChartColumn,
+        tile: 'bg-[#E6EEF9] text-[#1F4E8C]',
+        href: DashboardController(),
+    },
     ...(isAdmin.value
-        ? [{ label: 'Kelola akun', note: 'Ubah atau hapus akun pengguna', icon: Users, tile: 'bg-[#FFF3DB] text-[#D9822B]' }]
+        ? [{ label: 'Kelola akun', note: 'Ubah atau hapus akun pengguna', icon: Users, tile: 'bg-[#FFF3DB] text-[#D9822B]', href: null }]
         : []),
 ]);
 </script>
@@ -182,23 +189,38 @@ const shortcuts = computed(() => [
             <p class="mt-1 text-xs text-[#5B6B82]">Buka fitur yang sering dipakai</p>
 
             <ul class="mt-4 flex flex-col gap-3">
-                <li
-                    v-for="shortcut in shortcuts"
-                    :key="shortcut.label"
-                    class="flex cursor-not-allowed items-center gap-3 rounded-xl border border-[#E5E9F0] p-3 opacity-60"
-                    aria-disabled="true"
-                >
-                    <span class="flex size-10 shrink-0 items-center justify-center rounded-lg" :class="shortcut.tile">
-                        <component :is="shortcut.icon" class="size-5" aria-hidden="true" />
-                    </span>
-                    <span class="min-w-0 flex-1">
-                        <span class="block text-[13px] font-bold">{{ shortcut.label }}</span>
-                        <span class="block truncate text-xs text-[#5B6B82]">{{ shortcut.note }}</span>
-                    </span>
-                    <span class="rounded-full bg-[#EEF1F6] px-2 py-0.5 text-[10px] font-semibold tracking-wide text-[#5B6B82] uppercase">
-                        Segera
-                    </span>
-                    <ArrowRight class="size-4 text-[#5B6B82]" aria-hidden="true" />
+                <li v-for="shortcut in shortcuts" :key="shortcut.label">
+                    <Link
+                        v-if="shortcut.href"
+                        :href="shortcut.href"
+                        class="flex items-center gap-3 rounded-xl border border-[#E5E9F0] p-3 outline-none transition-colors hover:bg-[#F5F8FC] focus-visible:ring-4 focus-visible:ring-[#1F4E8C]/20"
+                    >
+                        <span class="flex size-10 shrink-0 items-center justify-center rounded-lg" :class="shortcut.tile">
+                            <component :is="shortcut.icon" class="size-5" aria-hidden="true" />
+                        </span>
+                        <span class="min-w-0 flex-1">
+                            <span class="block text-[13px] font-bold">{{ shortcut.label }}</span>
+                            <span class="block truncate text-xs text-[#5B6B82]">{{ shortcut.note }}</span>
+                        </span>
+                        <ArrowRight class="size-4 text-[#5B6B82]" aria-hidden="true" />
+                    </Link>
+                    <div
+                        v-else
+                        class="flex cursor-not-allowed items-center gap-3 rounded-xl border border-[#E5E9F0] p-3 opacity-60"
+                        aria-disabled="true"
+                    >
+                        <span class="flex size-10 shrink-0 items-center justify-center rounded-lg" :class="shortcut.tile">
+                            <component :is="shortcut.icon" class="size-5" aria-hidden="true" />
+                        </span>
+                        <span class="min-w-0 flex-1">
+                            <span class="block text-[13px] font-bold">{{ shortcut.label }}</span>
+                            <span class="block truncate text-xs text-[#5B6B82]">{{ shortcut.note }}</span>
+                        </span>
+                        <span class="rounded-full bg-[#EEF1F6] px-2 py-0.5 text-[10px] font-semibold tracking-wide text-[#5B6B82] uppercase">
+                            Segera
+                        </span>
+                        <ArrowRight class="size-4 text-[#5B6B82]" aria-hidden="true" />
+                    </div>
                 </li>
             </ul>
         </section>

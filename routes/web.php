@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\WorkBookController;
@@ -9,6 +10,7 @@ Route::redirect('/', '/login')->name('home');
 
 Route::middleware(['auth'])->group(function () {
     Route::get('dashboard', HomeController::class)->name('dashboard');
+    Route::get('admin/dashboard', DashboardController::class)->name('admin.dashboard');
     Route::resource('work-books', WorkBookController::class)->except('index');
     Route::get('attachments/{attachment}', [AttachmentController::class, 'show'])->name('attachments.show');
 });

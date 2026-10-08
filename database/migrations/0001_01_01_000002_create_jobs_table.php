@@ -45,11 +45,6 @@ return new class extends Migration
 
             $table->index(['connection', 'queue', 'failed_at']);
         });
-        Schema::table('work_books', function (Blueprint $table) {
-            $table->string('village')->nullable();
-            $table->string('regency')->nullable();
-            $table->unsignedBigInteger('absorption_kg')->nullable();
-        });
     }
 
     /**
