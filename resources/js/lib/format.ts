@@ -40,3 +40,8 @@ export function parseAngka(text: string): number | null {
 
     return Number.isFinite(n) && n >= 0 ? n : null;
 }
+
+/** Ton dengan jumlah desimal menyesuaikan besarnya angka: 12840 -> "12.840", 12.5 -> "12,5". */
+export function formatTon(value: number): string {
+    return formatAngka(value, value >= 100 ? 0 : value >= 1 ? 1 : 2);
+}

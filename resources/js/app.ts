@@ -1,9 +1,10 @@
 import { createInertiaApp } from '@inertiajs/vue3';
 import { initializeTheme } from '@/composables/useAppearance';
+import AdminLayout from '@/layouts/AdminLayout.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import AuthLayout from '@/layouts/AuthLayout.vue';
 import BulogAuthLayout from '@/layouts/BulogAuthLayout.vue';
-import PicLayout from '@/layouts/PicLayout.vue';
+import WorkBookLayout from '@/layouts/WorkBookLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { initializeFlashToast } from '@/lib/flashToast';
 
@@ -19,8 +20,10 @@ void createInertiaApp({
                 return BulogAuthLayout;
             case name.startsWith('auth/'):
                 return AuthLayout;
+            case name.startsWith('Admin/'):
+                return AdminLayout;
             case name.startsWith('WorkBooks/'):
-                return PicLayout;
+                return WorkBookLayout;
             case name.startsWith('settings/'):
                 return [AppLayout, SettingsLayout];
             default:
